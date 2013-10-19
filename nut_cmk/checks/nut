@@ -1,0 +1,381 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+# +------------------------------------------------------------------+
+# |				 ____ _					_		  __  __ _  __			  |
+# |				/ ___| |__	___  ___| | __	|  \/  | |/ /			  |
+# |			  | |	| '_ \ / _ \/ __| |/ /	| |\/| | ' /				|
+# |			  | |___| | | |  __/ (__|	<	 | |  | | . \				|
+# |				\____|_| |_|\___|\___|_|\_\___|_|  |_|_|\_\			  |
+# |																						|
+# | Copyright Mathias Kettner 2010				 mk@mathias-kettner.de |
+# +------------------------------------------------------------------+
+#
+# This file will some day be part of Check_MK.
+# The official homepage is at http://mathias-kettner.de/check_mk.
+
+
+# Author: Daniel Karni <minodudd@gmail.com>
+
+# EXAMPLE DATA FROM: Ablerex VT650 (vt650)
+#<<<nut>>>
+#vt650 battery.voltage: 14.10
+#vt650 battery.voltage.high: -1.08
+#vt650 battery.voltage.low: -0.87
+#vt650 device.type: ups
+#vt650 driver.name: blazer_usb
+#vt650 driver.parameter.bus: 005
+#vt650 driver.parameter.pollinterval: 2
+#vt650 driver.parameter.port: auto
+#vt650 driver.version: 2.6.4
+#vt650 driver.version.internal: 0.08
+#vt650 input.frequency: 49.9
+#vt650 input.voltage: 235.6
+#vt650 input.voltage.fault: 140.0
+#vt650 output.voltage: 236.4
+#vt650 ups.beeper.status: enabled
+#vt650 ups.delay.shutdown: 30
+#vt650 ups.delay.start: 180
+#vt650 ups.load: 23
+#vt650 ups.productid: 0000
+#vt650 ups.status: OL
+#vt650 ups.temperature: 30.0
+#vt650 ups.type: offline / line interactive
+#vt650 ups.vendorid: ffff
+
+nut_temp_default_values = (35, 40)
+nut_load_default_values = (50, 70)
+nut_output_default_values = (245, 250)
+
+nut_battery_default_levels = (10, 5)
+
+nut_input_voltage_fault_default_levels = (155,  160)
+nut_input_default_levels = (245, 250)
+nut_input_freq_default_levels = (51, 55)
+
+
+# the inventory function (dummy)
+def inventory_nut(check_type, info):
+	# begin with empty inventory
+	inventory = []
+	for line in info:
+		
+		# loop over all output lines of the agent
+		if len(line) < 3:
+			#found a broken line (values are in the third column)
+			continue
+
+		if check_type == 'nut.device' \
+			and line[1] in [ 'device.type:',
+							'ups.productid:',
+							'ups.type:',
+							'ups.vendorid:',] \
+		   and not (line[0], None) in inventory:
+			inventory.append((line[0], None))
+		elif check_type == 'nut.driver' \
+			and line[1] in [ 'driver.name:',
+							'driver.parameter.bus:',
+							'driver.parameter.pollinterval:',
+							'driver.parameter.port:',
+							'driver.version:',
+							'driver.version.internal:',] \
+		   and not (line[0], None) in inventory:
+			inventory.append((line[0], None))
+		elif check_type == 'nut.input' \
+			and line[1] in [ 'input.frequency:',
+							'input.voltage:',
+							'input.voltage.fault:',] \
+		   and not (line[0], None) in inventory:
+			inventory.append((line[0], None))
+		elif check_type == 'nut.delay' \
+			and line[1] in [ 'ups.delay.shutdown:',
+							'ups.delay.start:',] \
+		   and not (line[0], None) in inventory:
+			inventory.append((line[0], None))
+		elif check_type == 'nut.input.freq' and line[1] == 'input.frequency:':
+			inventory.append((line[0], None, 'nut_input_freq_default_levels'))
+		elif check_type == 'nut.input' and line[1] == 'input.voltage:':
+			inventory.append((line[0], None, 'nut_input_default_levels'))
+		elif check_type == 'nut.input.fault' and line[1] == 'input.voltage.fault:':
+			inventory.append((line[0], None, 'nut_input_voltage_fault_default_levels'))
+		elif check_type == 'nut.battery' and line[1] == 'battery.voltage:':
+			inventory.append((line[0], None, 'nut_battery_default_levels'))
+		elif check_type == 'nut.output' and line[1] == 'output.voltage:':
+			inventory.append((line[0], None, 'nut_output_default_values'))
+		elif check_type == 'nut.beeper' and line[1] == 'ups.beeper.status:':
+			inventory.append((line[0], None))
+		elif check_type == 'nut.load' and line[1] == 'ups.load:':
+			inventory.append((line[0], None, 'nut_load_default_values'))
+		elif check_type == 'nut.temp' and line[1] == 'ups.temperature:':
+			inventory.append((line[0], None, 'nut_temp_default_values'))
+		elif check_type == 'nut.status' and line[1] == 'ups.status:':
+			inventory.append((line[0], None))
+			
+	return inventory
+
+	
+	
+def check_nut_input_freq(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "input.frequency:":
+
+			freq = float(line[2])
+			perfdata = [ ( "frequency", freq, warn, crit ) ]
+			
+			if freq >= crit:
+				return (2, "CRIT - Input Frequency is %0.2fHz" % freq, perfdata)
+			elif freq >= warn:
+				return (1, "WARN - Input Frequency is %0.2fHz" % freq, perfdata)
+			else:
+				return (0, "OK - Input Frequency is %0.2fHz" % freq, perfdata)
+	return (3, "UNKNOWN - input.frequency not found in agent output for %s" % item)
+
+	
+def check_nut_input_fault(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "input.voltage.fault:":
+
+			voltage = float(line[2])
+			perfdata = [ ( "voltage", voltage, warn, crit ) ]
+			
+			if voltage >= crit:
+				return (2, "CRIT - Input Voltage fault is %0.2fv" % voltage, perfdata)
+			elif voltage >= warn:
+				return (1, "WARN - Input Voltage fault is %0.2fv" % voltage, perfdata)
+			else:
+				return (0, "OK - Input Voltage fault is %0.2fv" % voltage, perfdata)
+	return (3, "UNKNOWN - input.voltage.fault not found in agent output for %s" % item)
+
+	
+def check_nut_input(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "input.voltage:":
+
+			voltage = float(line[2])
+			perfdata = [ ( "voltage", voltage, warn, crit ) ]
+			
+			if voltage >= crit:
+				return (2, "CRIT - Input Voltage is %0.2fv" % voltage, perfdata)
+			elif voltage >= warn:
+				return (1, "WARN - Input Voltage is %0.2fv" % voltage, perfdata)
+			else:
+				return (0, "OK - Input Voltage is %0.2fv" % voltage, perfdata)
+	return (3, "UNKNOWN - input.voltage not found in agent output for %s" % item)
+
+
+def check_nut_battery(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "battery.voltage:":
+
+			voltage = float(line[2])
+			perfdata = [ ( "voltage", voltage, warn, crit ) ]
+			
+			if voltage <= crit:
+				return (2, "CRIT - Battery Voltage is %0.2fv" % voltage, perfdata)
+			elif voltage <= warn:
+				return (1, "WARN - Battery Voltage is %0.2fv" % voltage, perfdata)
+			else:
+				return (0, "OK - Battery Voltage is %0.2fv" % voltage, perfdata)
+	return (3, "UNKNOWN - battery.voltage not found in agent output for %s" % item)
+
+
+def check_nut_output(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "output.voltage:":
+
+			voltage = float(line[2])
+			perfdata = [ ( "voltage", voltage, warn, crit ) ]
+			
+			if voltage >= crit:
+				return (2, "CRIT - Output Voltage is %0.2fv" % voltage, perfdata)
+			elif voltage >= warn:
+				return (1, "WARN - Output Voltage is %0.2fv" % voltage, perfdata)
+			else:
+				return (0, "OK - Output Voltage is %0.2fv" % voltage, perfdata)
+	return (3, "UNKNOWN - output.voltage not found in agent output for %s" % item)
+
+
+
+def check_nut_load(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "ups.load:":
+
+			load = int(line[2])
+			perfdata = [ ( "load", load, warn, crit ) ]
+			
+			if load >= crit:
+				return (2, "CRIT - Load is %d%%" % load, perfdata)
+			elif load >= warn:
+				return (1, "WARN - Load is %d%%" % load, perfdata)
+			else:
+				return (0, "OK - Load is %d%%" % load, perfdata)
+	return (3, "UNKNOWN - ups.load not found in agent output for %s" % item)
+
+
+def check_nut_temp(item, params, info):
+	warn, crit = params
+	
+	for line in info:
+		
+		if len(line) >= 3 and line[0] == item and line[1] == "ups.temperature:":
+
+			celsius = float(line[2])
+			perfdata = [ ( "temp", celsius, warn, crit ) ]
+			if celsius >= crit:
+				return (2, "CRIT - Temperature is %0.1fC" % celsius, perfdata)
+			elif celsius >= warn:
+				return (1, "WARN - Temperature is %0.1fC" % celsius, perfdata)
+			else:
+				return (0, "OK - Temperature is %0.1fC" % celsius, perfdata)
+	return (3, "UNKNOWN - ups.temperature not found in agent output for %s" % item)
+
+
+### String collection checks
+
+def check_nut_device(item, params, info):
+	output   = []
+	for line in info:
+		if len(line) < 3 or line[0] != item:
+			continue
+
+		value = line[2]
+		field = line[1]
+		if field in [ 'device.type:',
+						'ups.productid:',
+						'ups.type:',
+						'ups.vendorid:',]:
+			for val, lab, txt in [
+					  (value,  'device.type:',		'Device Type'),
+					  (value,  'ups.productid:',	'Product ID'),
+					  (value,  'ups.type:',			'UPS Type'),
+					  (value,  'ups.vendorid:',		'Vendor ID'),
+				   ]:
+				if field == lab:
+					output.append('%s: %s' % (txt, val))
+				
+	if not output:
+		return (3, 'UNKNOWN - Found no info in nut outout')
+	return (0, "OK - Device Details: %s" % (', '.join(output)))
+	
+	
+
+def check_nut_driver(item, params, info):
+	output   = []
+	for line in info:
+		if len(line) < 3 or line[0] != item:
+			continue
+
+		value = line[2]
+		field = line[1]
+		if field in [ 'driver.name:',
+						'driver.parameter.bus:',
+						'driver.parameter.pollinterval:',
+						'driver.parameter.port:',
+						'driver.version:',
+						'driver.version.internal:',]:
+			for val, lab, txt in [
+					  (value, 'driver.name:',					'Name'),
+					  (value, 'driver.parameter.bus:',			'Parameter Bus'),
+					  (value, 'driver.parameter.pollinterval:',	'Poll Interval'),
+					  (value, 'driver.parameter.port:',			'Port'),
+					  (value, 'driver.version:',				'Version'),
+					  (value, 'driver.version.internal:',		'Internal Version'),
+				   ]:
+				if field == lab:
+					output.append('%s: %s' % (txt, val))
+				
+	if not output:
+		return (3, 'UNKNOWN - Found no info in nut outout')
+	return (0, "OK - Driver Details: %s" % (', '.join(output)))
+
+def check_nut_delay(item, params, info):
+	output   = []
+	for line in info:
+		if len(line) < 3 or line[0] != item:
+			continue
+
+		value = line[2]
+		field = line[1]
+		if field in [ 'ups.delay.shutdown:',
+						'ups.delay.start:',]:
+			for val, lab, txt in [
+					  (value,  'ups.delay.shutdown:',		'Shutdown Delay'),
+					  (value,  'ups.delay.start:',	'Start Delay'),
+				   ]:
+				if field == lab:
+					output.append('%s: %s' % (txt, val))
+				
+	if not output:
+		return (3, 'UNKNOWN - Found no info in nut outout')
+	return (0, "OK - Device Details: %s" % (', '.join(output)))
+	
+
+
+
+### String comparison checks
+
+def check_nut_beeper(item, params, info):
+	for line in info:
+		if len(line) < 3 or line[0] != item:
+			continue
+
+		value = line[2]
+		if line[1] == 'ups.beeper.status:':
+			if value == 'enabled':
+				return (0, "OK - UPS Beeper Status is enabled")
+			elif value == 'disabled':
+				return (1, "WARN - UPS Beeper Status is disabled")
+	return (3, "UNKNOWN - UPS Beeper Status cannot be determined for %s" % item)
+
+def check_nut_status(item, params, info):
+	for line in info:
+		if len(line) < 3 or line[0] != item:
+			continue
+
+		value = line[2]
+		if line[1] == 'ups.status:':
+			if value == 'OL':
+				return (0, "OK - UPS Status is Online (OL)")
+			elif value == 'OB':
+				return (1, "WARN - UPS Status is On Battery (OB)")
+			elif value == 'LB':
+				return (2, "CRIT - UPS Status is Low Battery (LB)")
+	return (3, "UNKNOWN - UPS Status cannot be determined for %s" % item)
+
+
+
+
+	
+
+# declare the check to Check_MK
+check_info["nut.battery"]		=	(check_nut_battery,		'NUT %s Battery Voltage',		1,	lambda info: inventory_nut("nut.battery", info))
+check_info["nut.device"]		=	(check_nut_device,		'NUT %s Device Details',		0,	lambda info: inventory_nut("nut.device", info))
+check_info["nut.driver"]		=	(check_nut_driver,		'NUT %s Driver Details',		0,	lambda info: inventory_nut("nut.driver", info))
+check_info["nut.input"]			=	(check_nut_input,		'NUT %s Input Voltage',			1,	lambda info: inventory_nut("nut.input", info))
+check_info["nut.input.freq"]	=	(check_nut_input_freq,	'NUT %s Input Frequency',		1,	lambda info: inventory_nut("nut.input.freq", info))
+check_info["nut.input.fault"]	=	(check_nut_input_fault,	'NUT %s Input Voltage Fault',	1,	lambda info: inventory_nut("nut.input.fault", info))
+check_info["nut.output"]		=	(check_nut_output,		'NUT %s Output Voltage',		1,	lambda info: inventory_nut("nut.output", info))
+check_info["nut.load"]			=	(check_nut_load,		'NUT %s Load Percentage',		1,	lambda info: inventory_nut("nut.load", info))
+check_info["nut.beeper"]		=	(check_nut_beeper,		'NUT %s Beeper Status',			0,	lambda info: inventory_nut("nut.beeper", info))
+check_info["nut.delay"]			=	(check_nut_delay,		'NUT %s Delay settings',		0,	lambda info: inventory_nut("nut.delay", info))
+check_info["nut.temp"]			=	(check_nut_temp,		'NUT %s Temperature',			1,	lambda info: inventory_nut("nut.temp", info))
+check_info["nut.status"]		=	(check_nut_status,		'NUT %s Status',				0,	lambda info: inventory_nut("nut.status", info))
+
+

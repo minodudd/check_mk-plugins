@@ -1,0 +1,7 @@
+#!/bin/sh
+echo '<<<nut>>>'
+for ups in $(upsc -l)
+do
+	upsc $ups| sed "s,^,$ups ,"
+done
+
