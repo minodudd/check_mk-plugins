@@ -1,0 +1,45 @@
+title: Check state of UPS via nut
+agents: linux
+author: Daniel Karni <minodudd@gmail.com>
+license: Apache v2.0
+distribution: check_mk
+description:
+ Describe here: This check monitors health statistics like error counters of UPS units using the
+  information reported by nut. it generates a number of checks similar to the SMART
+  plugin.
+
+  The check uses information provided by the Check_MK linux agent which are
+  available when the agent has been extended with the {nut} agent plugin.
+
+perfdata:
+ One variable for each of the known state counters.
+
+inventory:
+  If there is at least one supported value available for a UPS one service is
+  inventorized.
+
+[parameters]
+ The warning/critical levels for each supported numeric values are parameterized.
+
+ examples:
+
+ # Set UPS Temperature warning/critical levels to 35°C and 40°C
+ nut_temp_default_values = (35, 40)
+
+ # Set UPS Load Percentage warning/critical levels to 50% and 70%
+ nut_load_default_values = (50, 70)
+
+ # Set UPS Output Voltage warning/critical levels to 245v and 250v
+ nut_output_default_values = (245, 250)
+
+ # Set UPS Battery Voltage warning/critical levels to 10v and 5v
+ nut_battery_default_levels = (10, 5)
+
+ # Set UPS Input Voltage Fault (wall outlet voltage fault) warning/critical levels to 155v and 160v
+ nut_input_voltage_fault_default_levels = (155,  160)
+
+ # Set UPS Input Voltage (wall outlet voltage ) warning/critical levels to 245v and 250v
+ nut_input_default_levels = (245, 250)
+
+ # Set UPS Input Frequency (wall outlet frequency) warning/critical levels to 51Hz and 55Hz
+ nut_input_freq_default_levels = (51, 55)
