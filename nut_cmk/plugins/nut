@@ -1,7 +1,10 @@
 #!/bin/sh
-echo '<<<nut>>>'
-for ups in $(upsc -l)
-do
-	upsc $ups| sed "s,^,$ups ,"
-done
+
+if which upsc > /dev/null 2>&1 ; then
+    echo '<<<nut>>>'
+    for ups in $(upsc -l)
+    do
+	    upsc $ups| sed "s,^,$ups ,"
+    done
+fi
 
