@@ -46,6 +46,8 @@ nut_load_default_values = (50, 70)
 nut_output_default_values = (245, 250)
 
 nut_battery_default_levels = (10, 5)
+nut_battery_charge_default_levels = (90, 85)
+nut_battery_runtime_default_levels = (1200, 900)
 
 nut_input_voltage_fault_default_levels = (155,  160)
 nut_input_default_levels = (245, 250)
@@ -111,11 +113,11 @@ def check_nut_battery(item, params, info):
 			perfdata = [ ( "voltage", voltage, warn, crit ) ]
 			
 			if voltage <= crit:
-				return (2, "CRIT - Battery Voltage is %0.2fv" % voltage, perfdata)
+				return (2, "CRIT - Battery Voltage is %0.2f V" % voltage, perfdata)
 			elif voltage <= warn:
-				return (1, "WARN - Battery Voltage is %0.2fv" % voltage, perfdata)
+				return (1, "WARN - Battery Voltage is %0.2f V" % voltage, perfdata)
 			else:
-				return (0, "OK - Battery Voltage is %0.2fv" % voltage, perfdata)
+				return (0, "OK - Battery Voltage is %0.2f V" % voltage, perfdata)
 	return (3, "UNKNOWN - battery.voltage not found in agent output for %s" % item)
 
 
@@ -130,11 +132,11 @@ def check_nut_battery_charge(item, params, info):
 			perfdata = [ ( "charge", charge, warn, crit ) ]
 			
 			if charge <= crit:
-				return (2, "CRIT - Battery Charge is %0.2fv" % charge, perfdata)
+				return (2, "CRIT - Battery Charge is %0.2f %%" % charge, perfdata)
 			elif charge <= warn:
-				return (1, "WARN - Battery Charge is %0.2fv" % charge, perfdata)
+				return (1, "WARN - Battery Charge is %0.2f %%" % charge, perfdata)
 			else:
-				return (0, "OK - Battery Charge is %0.2fv" % charge, perfdata)
+				return (0, "OK - Battery Charge is %0.2f %%" % charge, perfdata)
 	return (3, "UNKNOWN - battery.charge not found in agent output for %s" % item)
 
 
@@ -145,15 +147,15 @@ def check_nut_battery_runtime(item, params, info):
 		
 		if len(line) >= 3 and line[0] == item and line[1] == "battery.runtime:":
 
-			runtime = float(line[2])
+			runtime = float(line[2]) / 60
 			perfdata = [ ( "runtime", runtime, warn, crit ) ]
 			
 			if runtime <= crit:
-				return (2, "CRIT - Battery Charge is %0.2fv" % runtime, perfdata)
+				return (2, "CRIT - Battery Runtime is %0.2f min" % runtime, perfdata)
 			elif runtime <= warn:
-				return (1, "WARN - Battery Charge is %0.2fv" % runtime, perfdata)
+				return (1, "WARN - Battery Runtime is %0.2f min" % runtime, perfdata)
 			else:
-				return (0, "OK - Battery Charge is %0.2fv" % runtime, perfdata)
+				return (0, "OK - Battery Runtime is %0.2f min" % runtime, perfdata)
 	return (3, "UNKNOWN - battery.runtime not found in agent output for %s" % item)
 
 	
@@ -280,12 +282,12 @@ check_info["nut.battery.charge"]	=	(check_nut_battery_charge,		'NUT %s Battery C
 check_info["nut.battery.runtime"]	=	(check_nut_battery_runtime,		'NUT %s Battery Runtime',		1,	lambda info: inventory_nut("nut.battery.runtime", info))
 check_info["nut.device"]			=	(check_nut_device,				'NUT %s Device Details',		0,	lambda info: inventory_nut("nut.device", info))
 check_info["nut.driver"]			=	(check_nut_driver,				'NUT %s Driver Details',		0,	lambda info: inventory_nut("nut.driver", info))
-check_info["nut.input"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"input.voltage", "voltage", "Input Voltage is %0.2fv"),	'NUT %s Input Voltage',			1,	lambda info: inventory_nut("nut.input", info))
-check_info["nut.input.freq"]		=	(lambda item, params, info: check_nut_value(item, params, info,"input.frequency", "frequency", "Input Frequency is %0.2fHz"),	'NUT %s Input Frequency',		1,	lambda info: inventory_nut("nut.input.freq", info))
-check_info["nut.input.fault"]		=	(lambda item, params, info: check_nut_value(item, params, info,"input.voltage.fault", "voltage", "Input Voltage fault is %0.2fv"),	'NUT %s Input Voltage Fault',	1,	lambda info: inventory_nut("nut.input.fault", info))
-check_info["nut.output"]	    	=	(lambda item, params, info: check_nut_value(item, params, info,"output.voltage", "voltage", "Output Voltage is %0.2fv"),	'NUT %s Output Voltage',		1,	lambda info: inventory_nut("nut.output", info))
-check_info["nut.load"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"ups.load", "load", "Load is %d%%"),	'NUT %s Load Percentage',		1,	lambda info: inventory_nut("nut.load", info))
-check_info["nut.temp"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"ups.temperature", "temp", "Temperature is %0.1fC"),	'NUT %s Temperature',			1,	lambda info: inventory_nut("nut.temp", info))
+check_info["nut.input"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"input.voltage", "voltage", "Input Voltage is %0.2f V"),	'NUT %s Input Voltage',			1,	lambda info: inventory_nut("nut.input", info))
+check_info["nut.input.freq"]		=	(lambda item, params, info: check_nut_value(item, params, info,"input.frequency", "frequency", "Input Frequency is %0.2f Hz"),	'NUT %s Input Frequency',		1,	lambda info: inventory_nut("nut.input.freq", info))
+check_info["nut.input.fault"]		=	(lambda item, params, info: check_nut_value(item, params, info,"input.voltage.fault", "voltage", "Input Voltage fault is %0.2f V"),	'NUT %s Input Voltage Fault',	1,	lambda info: inventory_nut("nut.input.fault", info))
+check_info["nut.output"]	    	=	(lambda item, params, info: check_nut_value(item, params, info,"output.voltage", "voltage", "Output Voltage is %0.2f V"),	'NUT %s Output Voltage',		1,	lambda info: inventory_nut("nut.output", info))
+check_info["nut.load"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"ups.load", "load", "Load is %d %%"),	'NUT %s Load Percentage',		1,	lambda info: inventory_nut("nut.load", info))
+check_info["nut.temp"]	        	=	(lambda item, params, info: check_nut_value(item, params, info,"ups.temperature", "temp", "Temperature is %0.1f C"),	'NUT %s Temperature',			1,	lambda info: inventory_nut("nut.temp", info))
 check_info["nut.beeper"]			=	(check_nut_beeper,				'NUT %s Beeper Status',			0,	lambda info: inventory_nut("nut.beeper", info))
 check_info["nut.delay"]				=	(check_nut_delay,				'NUT %s Delay settings',		0,	lambda info: inventory_nut("nut.delay", info))
 check_info["nut.status"]			=	(check_nut_status,				'NUT %s Status',				0,	lambda info: inventory_nut("nut.status", info))
