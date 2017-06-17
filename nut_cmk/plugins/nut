@@ -2,7 +2,7 @@
 
 if which upsc > /dev/null 2>&1 ; then
     echo '<<<nut>>>'
-    for ups in $(upsc -l)
+    for ups in $(upsc -l 2>/dev/null)
     do
 	    upsc $ups| sed "s,^,$ups ,"
     done
