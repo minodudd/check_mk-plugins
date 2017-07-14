@@ -225,6 +225,11 @@ def check_nut_status(item, params, info):
 		value = line[2]
 		if line[1] == 'ups.status:':
 			if value == 'OL':
+				if len(line) > 3:
+					subvalue = line[3]
+					if subvalue == 'RB':
+						return (1, "WARN - UPS Change Battery")
+					return (3, "UNKNOWN - UPS Status cannot be determined for %s" % item)
 				return (0, "OK - UPS Status is Online (OL)")
 			elif value == 'OB':
 				return (1, "WARN - UPS Status is On Battery (OB)")
